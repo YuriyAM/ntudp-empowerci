@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>EmpowerCI - Resource Optimization</title>
+  <style>
+    /* Basic Reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background: #fff;
+      color: #333;
+    }
+
+    /* Top Bar */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0a66cc; /* Deep blue from pitch deck */
+      padding: 1rem 2rem;
+    }
+    header .logo {
+      color: #fff;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+    header .actions {
+      display: flex;
+      align-items: center;
+    }
+    header .actions a {
+      display: inline-flex;
+      align-items: center;
+      color: #fff;
+      margin-left: 1rem;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    header .actions a img {
+      width: 16px;
+      height: 16px;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    header .actions a:hover {
+      text-decoration: underline;
+    }
+
+    /* Main Content */
+    main {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 2rem;
+      padding: 2rem;
+    }
+
+    /* Pipeline View + Table Section */
+    .pipeline-section {
+      background: #f9f9f9;
+      border-radius: 6px;
+      padding: 1rem 2rem;
+    }
+    .pipeline-section h2 {
+      margin-bottom: 1rem;
+      color: #0a66cc;
+    }
+    .pipeline-graph {
+      height: 400px;
+      background: #f9f9f9;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .resource-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    .resource-table th,
+    .resource-table td {
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+      text-align: left;
+    }
+    .resource-table th {
+      background: #0a66cc;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* Sidebar Section */
+    .sidebar {
+      background: #f3f7fc;
+      border-radius: 6px;
+      padding: 1rem 2rem;
+    }
+    .sidebar h3 {
+      color: #0a66cc;
+      margin-bottom: 1rem;
+    }
+    .sidebar button {
+      display: inline-flex;
+      align-items: center;
+      margin-right: 0.5rem;
+      margin-bottom: 1rem;
+      padding: 0.5rem 1rem;
+      background: #0a66cc;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .sidebar button img {
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    .sidebar button:hover {
+      opacity: 0.9;
+    }
+
+    /* Usage Profile buttons */
+    .usage-profile-container {
+      margin-bottom: 1rem;
+    }
+    .usage-profile-label {
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      display: block;
+    }
+    .profile-options {
+      display: flex;
+      justify-content: space-between;
+    }
+    .profile-option {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      width: 90px;
+      margin-right: 0.5rem;
+      padding: 0.5rem;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      cursor: pointer;
+      background: #fff;
+      transition: border-color 0.2s, background-color 0.2s;
+    }
+    .profile-option:hover {
+      border-color: #666;
+    }
+    .profile-option svg {
+      margin-bottom: 0.25rem;
+    }
+    .profile-option.selected {
+      border-color: #0a66cc;
+      background-color: #e6f2ff; /* Light highlight color */
+    }
+
+    .sidebar form {
+      margin-top: 1rem;
+    }
+    .sidebar label {
+      display: block;
+      margin-bottom: 0.25rem;
+      font-weight: 500;
+    }
+    .sidebar input[type="text"] {
+      width: 100%;
+      margin-bottom: 0.75rem;
+      padding: 0.4rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    /* Highlight class for selected nodes in the graph */
+    .highlight {
+      stroke: #0a66cc !important;
+      stroke-width: 3px;
+    }
+
+    /* Footer */
+    footer {
+      background: #0a66cc;
+      color: #fff;
+      padding: 1rem 2rem;
+      text-align: center;
+    }
+    footer p {
+      margin: 0.5rem 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">EmpowerCI</div>
+    <div class="actions">
+      <a href="#">
+        <img src="https://cdn-icons-png.flaticon.com/512/892/892496.png" alt="Login Icon">
+        Login
+      </a>
+      <a href="#">
+        <img src="https://cdn-icons-png.flaticon.com/512/126/126486.png" alt="Sign Up Icon">
+        Sign Up
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left Section: Pipeline View + Table -->
+    <section class="pipeline-section">
+      <h2>Pipeline Overview</h2>
+      <!-- Interactive pipeline graph container -->
+      <div class="pipeline-graph">
+        <svg id="pipelineSvg" width="100%" height="100%"></svg>
+      </div>
+
+      <table class="resource-table">
+        <thead>
+          <tr>
+            <th>Resource</th>
+            <th>Current Usage</th>
+            <th>Proposed Change</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>CPU</td>
+            <td>80%</td>
+            <td>-15%</td>
+          </tr>
+          <tr>
+            <td>Memory</td>
+            <td>6 GB</td>
+            <td>-1 GB</td>
+          </tr>
+          <tr>
+            <td>Disk</td>
+            <td>120 GB</td>
+            <td>-10 GB</td>
+          </tr>
+          <tr>
+            <td>License 1</td>
+            <td>2 concurrent seats</td>
+            <td>+1 seat</td>
+          </tr>
+          <tr>
+            <td>License 2</td>
+            <td>1 concurrent seat</td>
+            <td>Unchanged</td>
+          </tr>
+          <tr>
+            <td>Total Exec Time</td>
+            <td>45 mins</td>
+            <td>-10 mins</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Right Section: Sidebar -->
+    <aside class="sidebar">
+      <h3>Pipeline Import</h3>
+      <!-- Example icons from devicon for GitLab & Jenkins, plus a placeholder for TeamCity -->
+      <button>
+        <img 
+          src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/gitlab/gitlab-original.svg" 
+          alt="GitLab icon">
+        Import from GitLab
+      </button>
+      <button>
+        <img 
+          src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/jenkins/jenkins-original.svg" 
+          alt="Jenkins icon">
+        Import from Jenkins
+      </button>
+      <button>
+        <img 
+          src="https://cdn-icons-png.flaticon.com/512/443/443657.png" 
+          alt="TeamCity icon">
+        Import from TeamCity
+      </button>
+
+      <form id="jobForm">
+        <h3>Job Configuration</h3>
+        <label for="labels">Job Name</label>
+        <input type="text" id="labels" placeholder="e.g. 'Build Job'">
+
+        <!-- Usage Profile Buttons -->
+        <div class="usage-profile-container">
+          <span class="usage-profile-label">Usage Profile</span>
+          <div class="profile-options">
+            <!-- Trapezoidal -->
+            <div class="profile-option" data-value="Trapezoidal">
+              <svg width="40" height="30">
+                <polyline points="2,28 10,5 30,5 38,28"
+                          style="fill:none;stroke:black;stroke-width:2" />
+              </svg>
+              <span>Trapezoidal</span>
+            </div>
+
+            <!-- Normal (Bell Curve) -->
+            <div class="profile-option" data-value="Normal Distribution">
+              <svg width="40" height="30">
+                <path d="M2,28 Q 20,-5 38,28"
+                      style="fill:none;stroke:black;stroke-width:2" />
+              </svg>
+              <span>Normal</span>
+            </div>
+
+            <!-- Constant -->
+            <div class="profile-option" data-value="Constant">
+              <svg width="40" height="30">
+                <line x1="2" y1="15" x2="38" y2="15"
+                      style="stroke:black;stroke-width:2" />
+              </svg>
+              <span>Constant</span>
+            </div>
+          </div>
+        </div>
+
+        <label for="execTime">Execution Time (mins)</label>
+        <input type="text" id="execTime" placeholder="e.g. 30">
+
+        <!-- New button to add the job to the pipeline -->
+        <button type="button" id="addJobBtn">Add Job</button>
+      </form>
+    </aside>
+  </main>
+
+  <footer>
+    <p>© 2023 EmpowerCI - All Rights Reserved.</p>
+    <p><a href="#" style="color: #fff; text-decoration: underline;">www.empower-ci.dev</a></p>
+  </footer>
+
+  <!-- Include D3 from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.8.4/dist/d3.min.js"></script>
+  <script>
+    // === Setup for an empty pipeline ===
+    let nodes = [];        // Initially empty
+    let links = [];        // Initially empty
+    let selectedNodes = []; // Track multiple selections
+
+    const svg = d3.select('#pipelineSvg');
+    const g = svg.append('g');
+    let jobCounter = 0;     // For unique job IDs
+
+    // Define zoom behavior (for panning on empty space + scroll to zoom)
+    const zoom = d3.zoom()
+      .scaleExtent([0.5, 2])
+      .on('zoom', (event) => {
+        g.attr('transform', event.transform);
+      });
+
+    svg.call(zoom).on('dblclick.zoom', null);
+
+    // Arrow marker definition
+    svg.append('defs')
+      .append('marker')
+      .attr('id', 'arrow')
+      .attr('viewBox', '0 0 10 10')
+      .attr('refX', 10)
+      .attr('refY', 5)
+      .attr('markerWidth', 4)
+      .attr('markerHeight', 4)
+      .attr('orient', 'auto')
+      .append('path')
+      .attr('d', 'M0,0 L10,5 L0,10 Z')
+      .attr('fill', '#999');
+
+    // === Function to re-render everything ===
+    function redraw() {
+      // Clear existing lines/nodes
+      g.selectAll('line').remove();
+      g.selectAll('g.node').remove();
+
+      // Re-draw links
+      g.selectAll('line')
+        .data(links)
+        .enter()
+        .append('line')
+        .attr('x1', d => d.source.x)
+        .attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x)
+        .attr('y2', d => d.target.y)
+        .attr('stroke', '#999')
+        .attr('stroke-width', 2)
+        .attr('marker-end', 'url(#arrow)');
+
+      // Re-draw nodes
+      const rectWidth = 80;
+      const rectHeight = 30;
+
+      const nodeGroups = g.selectAll('g.node')
+        .data(nodes, d => d.id)
+        .enter()
+        .append('g')
+        .attr('class', 'node')
+        // Position each node
+        .attr('transform', d => {
+          return `translate(${d.x - rectWidth/2}, ${d.y - rectHeight/2})`;
+        });
+
+      // Draw node rectangles
+      nodeGroups.append('rect')
+        .attr('width', rectWidth)
+        .attr('height', rectHeight)
+        .attr('rx', 15)
+        .attr('ry', 15)
+        .attr('fill', '#fff')
+        .attr('stroke', '#333')
+        .attr('stroke-width', 1)
+        .classed('highlight', d => selectedNodes.includes(d))
+        .style('cursor', 'pointer')
+        // === Click: single or multi select ===
+        .on('click', function(event, d) {
+          event.stopPropagation();
+          if (!event.shiftKey) {
+            // No shift: single select
+            selectedNodes = [d];
+          } else {
+            // Shift: toggle
+            const idx = selectedNodes.indexOf(d);
+            if (idx > -1) {
+              selectedNodes.splice(idx, 1);
+            } else {
+              selectedNodes.push(d);
+            }
+          }
+          redraw();
+        })
+        // === DRAG BEHAVIOR ON THE NODE ===
+        .call(d3.drag()
+          .on('start', function(event) {
+            // Stop panning while dragging a node
+            event.sourceEvent.stopPropagation();
+          })
+          .on('drag', function(event, d) {
+            // Update the node's coordinates
+            d.x = event.x;
+            d.y = event.y;
+            // Move the rect's group
+            d3.select(this.parentNode)
+              .attr('transform', `translate(${d.x - rectWidth/2}, ${d.y - rectHeight/2})`);
+            
+            // Update any links where this node is source or target
+            g.selectAll('line')
+              .filter(l => l.source === d || l.target === d)
+              .attr('x1', l => l.source.x)
+              .attr('y1', l => l.source.y)
+              .attr('x2', l => l.target.x)
+              .attr('y2', l => l.target.y);
+          })
+        );
+
+      // Draw node labels
+      nodeGroups.append('text')
+        .attr('x', rectWidth / 2)
+        .attr('y', rectHeight / 2)
+        .attr('dy', '0.35em')
+        .attr('text-anchor', 'middle')
+        .text(d => d.label)
+        .style('font-size', '12px')
+        .style('pointer-events', 'none');
+    }
+
+    // Click on empty space => clear selection
+    svg.on('click', () => {
+      selectedNodes = [];
+      redraw();
+    });
+
+    // Profile selection script
+    document.addEventListener('DOMContentLoaded', () => {
+      const profileOptions = document.querySelectorAll('.profile-option');
+      profileOptions.forEach(option => {
+        option.addEventListener('click', () => {
+          profileOptions.forEach(o => o.classList.remove('selected'));
+          option.classList.add('selected');
+        });
+      });
+    });
+
+    // "Add Job" logic
+    const addJobBtn = document.getElementById('addJobBtn');
+    const labelsInput = document.getElementById('labels');
+
+    addJobBtn.addEventListener('click', () => {
+      const jobName = labelsInput.value.trim() || `Job ${jobCounter}`;
+      jobCounter += 1;
+
+      // New node
+      const newNode = {
+        id: `job${jobCounter}`,
+        label: jobName,
+        x: 250,
+        y: 100 + jobCounter * 20
+      };
+      nodes.push(newNode);
+
+      // If there are selected nodes, connect them to the new job
+      if (selectedNodes.length > 0) {
+        selectedNodes.forEach(sNode => {
+          links.push({
+            source: sNode,
+            target: newNode
+          });
+        });
+      }
+
+      // Optional: select only the new job
+      selectedNodes = [newNode];
+
+      // Clear input
+      labelsInput.value = '';
+
+      redraw();
+    });
+
+    // Initial draw (empty pipeline to start)
+    redraw();
+  </script>
+</body>
+</html>
